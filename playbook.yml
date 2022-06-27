@@ -1,0 +1,59 @@
+---
+  - name: Installing and configuring ssh and some pkgs
+    hosts: web
+    tasks:
+        - name: disabling password login using ssh
+          lineinfile:
+            dest: /etc/ssh/sshd_config
+            regexp: '^PasswordAuthentication'
+            line: 'PasswordAuthentication no'
+            state: present
+          notify:
+            - restart sshd
+        - name: changing root password
+          user:
+            name: root
+            update_password: always
+            password: $1$JccyyUZD$1ffqNDcfusarHAgxk/iHj/
+        - name: Creating gabe, peter & jeff user
+          script: ./create-users.sh
+        
+        - name: granting sudo privileges to gabe
+          copy:
+            content: "gabe	ALL=(ALL) 	NOPASSWD: ALL \n"
+            dest: /etc/sudoers.d/gabe
+        
+        - name: granting sudo privileges to peter
+          copy:
+            content: "peter	ALL=(ALL) 	NOPASSWD: ALL \n"
+            dest: /etc/sudoers.d/peter
+      
+        - name: granting sudo privileges to jeff
+          copy:
+            content: "jeff	ALL=(ALL) 	NOPASSWD: ALL \n"
+            dest: /etc/sudoers.d/jeff
+        - name: installing mariadb-server pkgs
+          dnf:
+            name: mariadb-server
+            state: present
+        - name: start and enable mariadb service
+          service:
+            name: mariadb
+            state: started
+            enabled: true
+        - name: opening ssh and mysql services in firewalld
+          firewalld:
+            service: "{{ item }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop:
+            - ssh
+            - mysql
+
+    handlers:
+        - name: restart sshd
+          service:
+            name: sshd
+            state: restarted
+
